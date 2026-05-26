@@ -1,4 +1,7 @@
 -- Run this in phpMyAdmin → database: Demoweb
+-- ══════════════════════════════════════════════════════════════
+-- สำหรับ DB ที่มีอยู่แล้ว ให้รัน ALTER TABLE ส่วนด้านล่างสุด
+-- ══════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS dv_projects (
   id          VARCHAR(36)  PRIMARY KEY,
@@ -14,16 +17,12 @@ CREATE TABLE IF NOT EXISTS dv_projects (
   updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ถ้า table มีอยู่แล้ว ให้รันบรรทัดนี้เพิ่ม:
--- ALTER TABLE dv_projects ADD COLUMN IF NOT EXISTS line_oa VARCHAR(500) DEFAULT '';
--- ALTER TABLE dv_accounts ADD COLUMN IF NOT EXISTS assigned_to VARCHAR(100) DEFAULT '';
-
 CREATE TABLE IF NOT EXISTS dv_urls (
-  id         VARCHAR(36)  PRIMARY KEY,
-  project_id VARCHAR(36)  NOT NULL,
-  label      VARCHAR(100) NOT NULL,
+  id         VARCHAR(36)   PRIMARY KEY,
+  project_id VARCHAR(36)   NOT NULL,
+  label      VARCHAR(100)  NOT NULL,
   url        VARCHAR(1000) NOT NULL,
-  sort_order INT          DEFAULT 0,
+  sort_order INT           DEFAULT 0,
   FOREIGN KEY (project_id) REFERENCES dv_projects(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -33,22 +32,38 @@ CREATE TABLE IF NOT EXISTS dv_accounts (
   role        VARCHAR(100) DEFAULT '',
   email       VARCHAR(255) DEFAULT '',
   pass        VARCHAR(255) DEFAULT '',
-  assigned_to VARCHAR(100) DEFAULT '',
+  assigned_to VARCHAR(100) DEFAULT '',   -- LINE UID ของเจ้าของบัญชี (ว่าง = ทุกคนเห็น)
   sort_order  INT          DEFAULT 0,
   FOREIGN KEY (project_id) REFERENCES dv_projects(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Seed: TimeLine HR
+-- ── ผู้ใช้ที่อนุญาตเข้าระบบ (LINE UID) ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS dv_users (
+  id         VARCHAR(36)  PRIMARY KEY,
+  line_uid   VARCHAR(100) UNIQUE NOT NULL,   -- LINE User ID เช่น U1a2b3c4d...
+  name       VARCHAR(100) NOT NULL,          -- ชื่อที่แสดง
+  is_admin   TINYINT(1)   DEFAULT 0,         -- 1 = Admin เห็นทุกอย่าง
+  created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ══════════════════════════════════════════════════════════════
+-- สำหรับ DB ที่มีอยู่แล้ว รันคำสั่งด้านล่างนี้:
+-- ══════════════════════════════════════════════════════════════
+-- ALTER TABLE dv_projects ADD COLUMN IF NOT EXISTS line_oa VARCHAR(500) DEFAULT '';
+-- ALTER TABLE dv_accounts ADD COLUMN IF NOT EXISTS assigned_to VARCHAR(100) DEFAULT '';
+-- CREATE TABLE IF NOT EXISTS dv_users (...) -- ดู schema ด้านบน
+
+-- ── Seed: TimeLine HR ──────────────────────────────────────────────────────
 INSERT IGNORE INTO dv_projects (id, name, description, emoji, color, status, note) VALUES
 ('proj-timeline','TimeLine HR','HR SaaS · Attendance & Leave · Multi-tenant','📅','linear-gradient(135deg,#f97316,#ea580c)','LIVE','Demo mode: ข้อมูลเก็บใน localStorage ไม่กระทบ production');
 
 INSERT IGNORE INTO dv_urls (id, project_id, label, url, sort_order) VALUES
-('url-tl-1','proj-timeline','Admin Portal',            'https://timeline-admin.vercel.app',                             1),
-('url-tl-2','proj-timeline','Super Admin Dashboard',   'https://timeline-admin.vercel.app/superadmin/dashboard',        2),
-('url-tl-3','proj-timeline','Employee LIFF',           'https://timeline-employee.vercel.app',                          3),
-('url-tl-4','proj-timeline','Backend API',             'https://timeline-52hp.onrender.com',                            4);
+('url-tl-1','proj-timeline','Admin Portal',           'https://timeline-admin.vercel.app',                      1),
+('url-tl-2','proj-timeline','Super Admin Dashboard',  'https://timeline-admin.vercel.app/superadmin/dashboard', 2),
+('url-tl-3','proj-timeline','Employee LIFF',          'https://timeline-employee.vercel.app',                   3),
+('url-tl-4','proj-timeline','Backend API',            'https://timeline-52hp.onrender.com',                     4);
 
-INSERT IGNORE INTO dv_accounts (id, project_id, role, email, pass, sort_order) VALUES
-('acc-tl-1','proj-timeline','🏢 Admin',       'admin@wonghiran.com',  'Password123!', 1),
-('acc-tl-2','proj-timeline','🔐 Super Admin', 'admin@timeline.local', 'Password123!', 2),
-('acc-tl-3','proj-timeline','📱 Employee LIFF','(Line Login)',         '— ผ่าน Line เท่านั้น', 3);
+INSERT IGNORE INTO dv_accounts (id, project_id, role, email, pass, assigned_to, sort_order) VALUES
+('acc-tl-1','proj-timeline','🏢 Admin',       'admin@wonghiran.com',  'Password123!', '', 1),
+('acc-tl-2','proj-timeline','🔐 Super Admin', 'admin@timeline.local', 'Password123!', '', 2),
+('acc-tl-3','proj-timeline','📱 Employee LIFF','(Line Login)',        '— ผ่าน Line เท่านั้น', '', 3);
