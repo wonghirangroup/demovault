@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 
 // GET /api/me?uid=Uxxxxxxxx
-// ตรวจสอบว่า LINE UID นี้มีสิทธิ์เข้าระบบไหม
 export async function GET(req: NextRequest) {
   try {
     const uid = req.nextUrl.searchParams.get('uid')

@@ -43,15 +43,18 @@ function useToast() {
   return { msg, show, toast }
 }
 
-type AuthState = 'loading' | 'ok' | 'not_registered' | 'error'
+type AuthState = 'loading' | 'ok' | 'select_name' | 'no_slots' | 'error'
 
 // ══════════════════════════════════════════════════════════════════════════════
 export default function Page() {
   // ── Auth ───────────────────────────────────────────────────────────────────
-  const [authState,  setAuthState]  = useState<AuthState>('loading')
-  const [currentUser, setCurrentUser] = useState<DvUser | null>(null)
-  const [lineUid,    setLineUid]    = useState('')
-  const [lineAvatar, setLineAvatar] = useState('')
+  const [authState,     setAuthState]     = useState<AuthState>('loading')
+  const [currentUser,   setCurrentUser]   = useState<DvUser | null>(null)
+  const [lineUid,       setLineUid]       = useState('')
+  const [lineAvatar,    setLineAvatar]    = useState('')
+  const [unclaimedList, setUnclaimedList] = useState<DvUser[]>([])
+  const [selectedId,    setSelectedId]    = useState('')
+  const [claiming,      setClaiming]      = useState(false)
 
   // ── Data ───────────────────────────────────────────────────────────────────
   const [projects,  setProjects]  = useState<Project[]>([])
@@ -100,19 +103,49 @@ export default function Page() {
             setLineUid(uid)
             setLineAvatar(profile.pictureUrl || '')
 
+            // ตรวจว่า UID นี้ผูกกับชื่อใครแล้วไหม
             const res = await fetch(`/api/me?uid=${uid}`)
             const j   = await res.json()
             if (j.ok) {
               setCurrentUser(j.user)
               setAuthState('ok')
             } else {
-              setAuthState('not_registered')
+              // ยังไม่ได้ผูกชื่อ — ดึงรายชื่อที่ว่างอยู่
+              const r2 = await fetch('/api/claim')
+              const j2 = await r2.json()
+              if (j2.ok && j2.data.length > 0) {
+                setUnclaimedList(j2.data)
+                setAuthState('select_name')
+              } else {
+                setAuthState('no_slots')
+              }
             }
           })
         })
         .catch(() => setAuthState('error'))
     })
   }, [])
+
+  // ── Claim name ────────────────────────────────────────────────────────────
+  async function claimName() {
+    if (!selectedId || !lineUid) return
+    setClaiming(true)
+    try {
+      const res = await fetch('/api/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: selectedId, line_uid: lineUid }),
+      })
+      const j = await res.json()
+      if (!j.ok) throw new Error(j.error)
+      setCurrentUser(j.user)
+      setAuthState('ok')
+    } catch (e: any) {
+      alert('เกิดข้อผิดพลาด: ' + e.message)
+    } finally {
+      setClaiming(false)
+    }
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // FETCH DATA
@@ -266,19 +299,87 @@ export default function Page() {
     </div>
   )
 
-  if (authState === 'not_registered') return (
+  // ── หน้าเลือกชื่อ (ครั้งแรกที่เข้า) ─────────────────────────────────────
+  if (authState === 'select_name') return (
+    <div style={{ ...S.body, display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ width:'100%', maxWidth:400, padding:'0 16px' }}>
+        {/* Logo */}
+        <div style={{ textAlign:'center', marginBottom:28 }}>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:10, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:14, padding:'12px 20px', marginBottom:10 }}>
+            <div style={{ width:38, height:38, borderRadius:10, background:'linear-gradient(135deg,#f97316,#ea580c)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, color:'#fff', fontSize:18 }}>WH</div>
+            <div style={{ textAlign:'left' }}>
+              <div style={{ fontSize:'1rem', fontWeight:800, color:'#fff' }}>Demo Vault</div>
+              <div style={{ fontSize:'0.68rem', color:'#94a3b8' }}>WH Group</div>
+            </div>
+          </div>
+          <div style={{ fontSize:'1.1rem', fontWeight:800, color:'#f1f5f9', marginBottom:6 }}>ยินดีต้อนรับ! 👋</div>
+          <div style={{ fontSize:'.82rem', color:'#64748b' }}>เลือกชื่อของคุณเพื่อเข้าใช้งาน</div>
+        </div>
+
+        {/* Name grid */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
+          {unclaimedList.map(u => (
+            <button key={u.id}
+              onClick={() => setSelectedId(u.id)}
+              style={{
+                padding:'16px 12px', borderRadius:14, cursor:'pointer', fontFamily:'inherit',
+                border: selectedId === u.id
+                  ? '2px solid #6366f1'
+                  : '1px solid rgba(255,255,255,0.08)',
+                background: selectedId === u.id
+                  ? 'rgba(99,102,241,0.18)'
+                  : 'rgba(255,255,255,0.04)',
+                color: selectedId === u.id ? '#a5b4fc' : '#94a3b8',
+                fontSize:'1rem', fontWeight: selectedId === u.id ? 700 : 500,
+                transition:'all .15s',
+                display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+              }}>
+              <span style={{ fontSize:'1.6rem' }}>
+                {u.name === 'เน็ต'  ? '🧑‍💻' :
+                 u.name === 'ตอง'   ? '👨' :
+                 u.name === 'จิ๋ว'  ? '👩' :
+                 u.name === 'ปิ๋ว'  ? '👩' :
+                 u.name === 'อุ๋ม'  ? '🧑' :
+                 u.name === 'มอส'   ? '👦' :
+                 u.name === 'แพรว'  ? '👧' : '🙂'}
+              </span>
+              <span>{u.name}</span>
+              {u.is_admin === 1 && (
+                <span style={{ fontSize:'.6rem', color:'#f97316', fontWeight:700 }}>⚡ Admin</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Confirm button */}
+        <button
+          onClick={claimName}
+          disabled={!selectedId || claiming}
+          style={{
+            width:'100%', padding:'13px', borderRadius:12, border:'none', fontFamily:'inherit',
+            background: selectedId ? 'linear-gradient(135deg,#6366f1,#4f46e5)' : 'rgba(255,255,255,0.06)',
+            color: selectedId ? '#fff' : '#475569',
+            fontWeight:700, fontSize:'1rem', cursor: selectedId ? 'pointer' : 'not-allowed',
+            transition:'all .15s', opacity: claiming ? .7 : 1,
+          }}>
+          {claiming ? '⏳ กำลังยืนยัน...' : selectedId ? `✅ ยืนยัน — นี่คือฉัน "${unclaimedList.find(u=>u.id===selectedId)?.name}"` : 'เลือกชื่อของคุณก่อน'}
+        </button>
+
+        <p style={{ textAlign:'center', fontSize:'.72rem', color:'#334155', marginTop:12 }}>
+          หลังจากยืนยันแล้ว LINE ของคุณจะถูกผูกกับชื่อนี้ถาวร
+        </p>
+      </div>
+    </div>
+  )
+
+  if (authState === 'no_slots') return (
     <div style={{ ...S.body, display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ textAlign:'center', maxWidth:360 }}>
         <div style={{ fontSize:'3rem', marginBottom:16 }}>🔒</div>
-        <div style={{ color:'#f1f5f9', fontWeight:700, fontSize:'1.1rem', marginBottom:8 }}>ไม่มีสิทธิ์เข้าถึง</div>
-        <div style={{ color:'#64748b', fontSize:'.85rem', marginBottom:16 }}>
-          LINE UID ของคุณยังไม่ได้รับการอนุญาต<br/>กรุณาติดต่อ Admin เพื่อเพิ่มสิทธิ์
+        <div style={{ color:'#f1f5f9', fontWeight:700, fontSize:'1.1rem', marginBottom:8 }}>ไม่มีชื่อว่าง</div>
+        <div style={{ color:'#64748b', fontSize:'.85rem' }}>
+          ทุกชื่อถูกผูกไปแล้ว<br/>ติดต่อ Admin เพื่อเพิ่มชื่อใหม่
         </div>
-        {lineUid && (
-          <div style={{ background:'rgba(0,0,0,0.3)', borderRadius:10, padding:'10px 16px', fontSize:'.75rem', color:'#475569', fontFamily:'monospace', marginBottom:16 }}>
-            LINE UID ของคุณ: <span style={{ color:'#94a3b8' }}>{lineUid}</span>
-          </div>
-        )}
       </div>
     </div>
   )
