@@ -513,13 +513,42 @@ export default function Page() {
                     <input style={{ ...S.input, fontSize:12 }} value={a.email} onChange={e=>setAcct(i,'email',e.target.value)} placeholder="Username / Email" />
                     <input style={{ ...S.input, fontSize:12 }} value={a.pass}  onChange={e=>setAcct(i,'pass',e.target.value)}  placeholder="Password" />
                   </div>
-                  {/* Assign to user */}
-                  <select style={{ ...S.select, fontSize:11 }} value={a.assigned_to} onChange={e=>setAcct(i,'assigned_to',e.target.value)}>
-                    <option value="">🌐 ทุกคนเห็นได้ (Shared)</option>
-                    {dvUsers.map(u => (
-                      <option key={u.line_uid} value={u.line_uid}>{u.name} ({u.line_uid.slice(0,12)}...)</option>
-                    ))}
-                  </select>
+                  {/* Assign to users — Multi-select checkboxes */}
+                  <div style={{ background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.15)', borderRadius:8, padding:'8px 10px' }}>
+                    <div style={{ fontSize:10, color:'#6366f1', fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:6 }}>🔒 เห็นได้โดย</div>
+                    {/* ทุกคน */}
+                    <label style={{ display:'flex', alignItems:'center', gap:7, fontSize:12, color: !a.assigned_to ? '#4ade80':'#94a3b8', cursor:'pointer', marginBottom:5 }}>
+                      <input type="checkbox"
+                        checked={!a.assigned_to}
+                        onChange={() => setAcct(i,'assigned_to','')}
+                        style={{ accentColor:'#4ade80', width:14, height:14 }}
+                      />
+                      🌐 ทุกคนเห็นได้ (Shared)
+                    </label>
+                    {/* แต่ละคน */}
+                    <div style={{ display:'flex', flexWrap:'wrap' as const, gap:'4px 16px' }}>
+                      {dvUsers.map(u => {
+                        const uids    = a.assigned_to ? a.assigned_to.split(',').filter(Boolean) : []
+                        const checked = uids.includes(u.line_uid)
+                        return (
+                          <label key={u.line_uid} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color: checked ? '#a5b4fc':'#94a3b8', cursor:'pointer', padding:'2px 0' }}>
+                            <input type="checkbox"
+                              checked={checked}
+                              onChange={e => {
+                                const cur = a.assigned_to ? a.assigned_to.split(',').filter(Boolean) : []
+                                const next = e.target.checked
+                                  ? [...cur, u.line_uid]
+                                  : cur.filter(id => id !== u.line_uid)
+                                setAcct(i,'assigned_to', next.join(','))
+                              }}
+                              style={{ accentColor:'#6366f1', width:14, height:14 }}
+                            />
+                            {u.name}
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -586,16 +615,22 @@ function ProjectCard({ p, onEdit, onDelete, copy, copiedId, currentLineUid, isAd
   const s = STATUS_CFG[p.status] || STATUS_CFG.LIVE
   const [revealPass, setRevealPass] = useState<Record<string,boolean>>({})
 
-  // เห็น pass ได้ถ้า: assigned_to ว่าง (shared) หรือ UID ตรง หรือ เป็น admin
+  // เห็น pass ได้ถ้า: assigned_to ว่าง (shared) หรือ UID อยู่ในลิสต์ หรือ เป็น admin
   function canSee(a: ProjectAccount) {
     if (!a.assigned_to) return true
     if (isAdmin)        return true
-    return a.assigned_to === currentLineUid
+    const uids = a.assigned_to.split(',').map(s => s.trim()).filter(Boolean)
+    return uids.includes(currentLineUid)
   }
 
   // หาชื่อจาก LINE UID
   function userName(uid: string) {
-    return dvUsers.find(u => u.line_uid === uid)?.name || uid.slice(0,12)+'...'
+    return dvUsers.find(u => u.line_uid === uid.trim())?.name || uid.slice(0,8)+'...'
+  }
+
+  // แสดงชื่อเจ้าของหลายคน
+  function ownerNames(assigned_to: string) {
+    return assigned_to.split(',').filter(Boolean).map(uid => userName(uid)).join(', ')
   }
 
   return (
@@ -702,7 +737,7 @@ function ProjectCard({ p, onEdit, onDelete, copy, copiedId, currentLineUid, isAd
                       </>
                     ) : (
                       <span style={{ fontSize:'.75rem', color:'#334155', flex:1, fontStyle:'italic' }}>
-                        🔒 บัญชีของ {userName(a.assigned_to)}
+                        🔒 บัญชีของ {ownerNames(a.assigned_to)}
                       </span>
                     )}
                   </div>
