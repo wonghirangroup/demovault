@@ -8,10 +8,15 @@ CREATE TABLE IF NOT EXISTS dv_projects (
   color       VARCHAR(255) DEFAULT 'linear-gradient(135deg,#f97316,#ea580c)',
   status      ENUM('LIVE','DEMO','DEV','DOWN') DEFAULT 'LIVE',
   note        TEXT,
+  line_oa     VARCHAR(500) DEFAULT '',
   sort_order  INT          DEFAULT 0,
   created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ถ้า table มีอยู่แล้ว ให้รันบรรทัดนี้เพิ่ม:
+-- ALTER TABLE dv_projects ADD COLUMN IF NOT EXISTS line_oa VARCHAR(500) DEFAULT '';
+-- ALTER TABLE dv_accounts ADD COLUMN IF NOT EXISTS assigned_to VARCHAR(100) DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS dv_urls (
   id         VARCHAR(36)  PRIMARY KEY,
@@ -23,12 +28,13 @@ CREATE TABLE IF NOT EXISTS dv_urls (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS dv_accounts (
-  id         VARCHAR(36)  PRIMARY KEY,
-  project_id VARCHAR(36)  NOT NULL,
-  role       VARCHAR(100) DEFAULT '',
-  email      VARCHAR(255) DEFAULT '',
-  pass       VARCHAR(255) DEFAULT '',
-  sort_order INT          DEFAULT 0,
+  id          VARCHAR(36)  PRIMARY KEY,
+  project_id  VARCHAR(36)  NOT NULL,
+  role        VARCHAR(100) DEFAULT '',
+  email       VARCHAR(255) DEFAULT '',
+  pass        VARCHAR(255) DEFAULT '',
+  assigned_to VARCHAR(100) DEFAULT '',
+  sort_order  INT          DEFAULT 0,
   FOREIGN KEY (project_id) REFERENCES dv_projects(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

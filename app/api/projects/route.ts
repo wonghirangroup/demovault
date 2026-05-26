@@ -14,7 +14,8 @@ export async function GET() {
 
     const result = (projects as any[]).map((p: any) => ({
       ...p,
-      desc: p.description,
+      desc:    p.description,
+      line_oa: p.line_oa || '',
       urls:     (urls     as any[]).filter((u: any) => u.project_id === p.id),
       accounts: (accounts as any[]).filter((a: any) => a.project_id === p.id),
     }))
@@ -32,9 +33,9 @@ export async function POST(req: NextRequest) {
     const id = uuidv4()
 
     await pool.query(
-      `INSERT INTO dv_projects (id, name, description, emoji, color, status, note, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, body.name, body.desc||'', body.emoji||'📁', body.color||'', body.status||'LIVE', body.note||'', body.sort||0]
+      `INSERT INTO dv_projects (id, name, description, emoji, color, status, note, line_oa, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, body.name, body.desc||'', body.emoji||'📁', body.color||'', body.status||'LIVE', body.note||'', body.line_oa||'', body.sort||0]
     )
 
     // urls
@@ -49,8 +50,8 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < (body.accounts||[]).length; i++) {
       const a = body.accounts[i]
       await pool.query(
-        'INSERT INTO dv_accounts (id, project_id, role, email, pass, sort_order) VALUES (?,?,?,?,?,?)',
-        [uuidv4(), id, a.role||'', a.email||'', a.pass||'', i]
+        'INSERT INTO dv_accounts (id, project_id, role, email, pass, assigned_to, sort_order) VALUES (?,?,?,?,?,?,?)',
+        [uuidv4(), id, a.role||'', a.email||'', a.pass||'', a.assigned_to||'', i]
       )
     }
 

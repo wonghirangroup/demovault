@@ -26,7 +26,7 @@ const COLOR_HEX = ['#f97316','#6366f1','#0891b2','#16a34a','#a21caf','#d97706','
 function emptyForm() {
   return {
     name: '', desc: '', emoji: '📅', color: COLORS[0],
-    status: 'LIVE' as ProjectStatus, note: '',
+    status: 'LIVE' as ProjectStatus, note: '', line_oa: '',
     urls: [{ id: '', label: '', url: '', sort: 0 }] as (ProjectUrl & { sort: number })[],
     accounts: [] as (ProjectAccount & { sort: number })[],
   }
@@ -51,6 +51,26 @@ export default function Page() {
   const [loading,  setLoading]  = useState(true)
   const [search,   setSearch]   = useState('')
   const { msg: toastMsg, show: toastShow, toast } = useToast()
+
+  // ── Who am I ──────────────────────────────────────────────────────────────
+  const [currentUser, setCurrentUser] = useState<string>('')
+  const [userInput,   setUserInput]   = useState<string>('')
+  const [userOpen,    setUserOpen]    = useState(false)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('dv_username') || ''
+    setCurrentUser(saved)
+    setUserInput(saved)
+  }, [])
+
+  function saveUser(name: string) {
+    const trimmed = name.trim()
+    localStorage.setItem('dv_username', trimmed)
+    setCurrentUser(trimmed)
+    setUserOpen(false)
+    if (trimmed) toast(`👤 สวัสดี ${trimmed}!`)
+    else toast('👁️ โหมดดูทั้งหมด')
+  }
 
   // modal state
   const [formOpen,   setFormOpen]   = useState(false)
@@ -95,6 +115,7 @@ export default function Page() {
       color:    p.color || COLORS[0],
       status:   p.status,
       note:     p.note || '',
+      line_oa:  p.line_oa || '',
       urls:     p.urls.length ? p.urls.map((u,i) => ({ ...u, sort: i })) : [{ id:'', label:'', url:'', sort:0 }],
       accounts: p.accounts.map((a,i) => ({ ...a, sort: i })),
     })
@@ -115,13 +136,13 @@ export default function Page() {
   }
 
   // ── Account helpers ────────────────────────────────────────────────────────
-  function setAcct(i: number, field: 'role' | 'email' | 'pass', val: string) {
+  function setAcct(i: number, field: 'role' | 'email' | 'pass' | 'assigned_to', val: string) {
     setForm(f => {
       const accounts = [...f.accounts]; accounts[i] = { ...accounts[i], [field]: val }; return { ...f, accounts }
     })
   }
   function addAcct() {
-    setForm(f => ({ ...f, accounts: [...f.accounts, { id:'', role:'', email:'', pass:'', sort: f.accounts.length }] }))
+    setForm(f => ({ ...f, accounts: [...f.accounts, { id:'', role:'', email:'', pass:'', assigned_to:'', sort: f.accounts.length }] }))
   }
   function removeAcct(i: number) {
     setForm(f => ({ ...f, accounts: f.accounts.filter((_,idx) => idx !== i) }))
@@ -200,6 +221,22 @@ export default function Page() {
           </div>
         </div>
         <p style={{ fontSize:'.75rem', color:'#475569' }}>🔒 เก็บใน DB · ใช้งานได้ทุกเครื่อง</p>
+
+        {/* ── Who am I ── */}
+        <div style={{ marginTop:8 }}>
+          {currentUser ? (
+            <button onClick={()=>{ setUserInput(currentUser); setUserOpen(true) }}
+              style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'6px 14px', borderRadius:20, border:'1px solid rgba(99,102,241,0.4)', background:'rgba(99,102,241,0.12)', color:'#a5b4fc', fontSize:'.78rem', cursor:'pointer', fontFamily:'inherit' }}>
+              👤 {currentUser}
+              <span style={{ fontSize:'.68rem', color:'#64748b' }}>เปลี่ยน</span>
+            </button>
+          ) : (
+            <button onClick={()=>{ setUserInput(''); setUserOpen(true) }}
+              style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'6px 14px', borderRadius:20, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.05)', color:'#64748b', fontSize:'.78rem', cursor:'pointer', fontFamily:'inherit' }}>
+              👁️ ดูทั้งหมด · <span style={{ color:'#6366f1' }}>ตั้งชื่อตัวเอง</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Toolbar ── */}
@@ -221,8 +258,48 @@ export default function Page() {
             <div style={{ fontSize:'3rem', marginBottom:10 }}>🔍</div>
             <div>ไม่พบโปรเจค</div>
           </div>
-        ) : filtered.map(p => <ProjectCard key={p.id} p={p} onEdit={()=>openEdit(p)} onDelete={()=>askDelete(p)} copy={copy} copiedId={copiedId} />)}
+        ) : filtered.map(p => (
+          <ProjectCard
+            key={p.id} p={p}
+            onEdit={()=>openEdit(p)}
+            onDelete={()=>askDelete(p)}
+            copy={copy} copiedId={copiedId}
+            currentUser={currentUser}
+          />
+        ))}
       </div>
+
+      {/* ════════════════════════════════════════
+          WHO AM I MODAL
+      ════════════════════════════════════════ */}
+      {userOpen && (
+        <div style={S.overlay} onClick={e => { if (e.target === e.currentTarget) setUserOpen(false) }}>
+          <div style={{ ...S.modal, maxWidth:360 }}>
+            <h2 style={{ fontWeight:800, fontSize:'1rem', color:'#f1f5f9', marginBottom:6 }}>👤 ฉันคือใคร?</h2>
+            <p style={{ fontSize:'.8rem', color:'#64748b', marginBottom:16 }}>
+              ใส่ชื่อของคุณเพื่อแสดงเฉพาะบัญชีที่เป็นของคุณ<br/>
+              ปล่อยว่างไว้เพื่อดูทุกบัญชี (แต่รหัสของคนอื่นจะถูกซ่อน)
+            </p>
+            <input
+              style={S.input}
+              value={userInput}
+              onChange={e=>setUserInput(e.target.value)}
+              placeholder="เช่น Arm, Net, Ploy..."
+              onKeyDown={e => e.key === 'Enter' && saveUser(userInput)}
+              autoFocus
+            />
+            <div style={{ display:'flex', gap:8, marginTop:14, justifyContent:'flex-end' }}>
+              {currentUser && (
+                <button onClick={()=>saveUser('')} style={{ ...S.btnSec, color:'#f87171', borderColor:'rgba(220,38,38,0.3)' }}>
+                  ออกจากโหมดผู้ใช้
+                </button>
+              )}
+              <button onClick={()=>setUserOpen(false)} style={S.btnSec}>ยกเลิก</button>
+              <button onClick={()=>saveUser(userInput)} style={S.btnPrim}>ยืนยัน</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ════════════════════════════════════════
           ADD / EDIT MODAL
@@ -249,7 +326,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Emoji + Color + Status */}
+            {/* Emoji + Status */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:12, marginBottom:14 }}>
               <div>
                 <label style={S.label}>ไอคอน</label>
@@ -274,7 +351,7 @@ export default function Page() {
             </div>
 
             {/* Color */}
-            <div style={{ marginBottom:16 }}>
+            <div style={{ marginBottom:14 }}>
               <label style={S.label}>สีการ์ด</label>
               <div style={{ display:'flex', gap:7, marginTop:4 }}>
                 {COLORS.map((c,i) => (
@@ -282,6 +359,13 @@ export default function Page() {
                     style={{ width:26, height:26, borderRadius:6, background:COLOR_HEX[i], cursor:'pointer', border:`2px solid ${form.color===c ? '#fff':'transparent'}`, transform:form.color===c ? 'scale(1.2)':'scale(1)', transition:'all .15s' }} />
                 ))}
               </div>
+            </div>
+
+            {/* Line OA */}
+            <div style={{ marginBottom:14 }}>
+              <label style={S.label}>💚 Line OA URL</label>
+              <input style={S.input} value={form.line_oa} onChange={e=>setForm(f=>({...f,line_oa:e.target.value}))}
+                placeholder="https://lin.ee/xxxxxxx หรือ https://page.line.me/..." />
             </div>
 
             {/* ── URLs ── */}
@@ -323,9 +407,14 @@ export default function Page() {
                       ✕
                     </button>
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
                     <input style={{ ...S.input, fontSize:12 }} value={a.email} onChange={e=>setAcct(i,'email',e.target.value)} placeholder="Username / Email" />
                     <input style={{ ...S.input, fontSize:12 }} value={a.pass}  onChange={e=>setAcct(i,'pass', e.target.value)} placeholder="Password" />
+                  </div>
+                  <div>
+                    <input style={{ ...S.input, fontSize:11, background:'rgba(99,102,241,0.06)', borderColor:'rgba(99,102,241,0.2)' }}
+                      value={a.assigned_to} onChange={e=>setAcct(i,'assigned_to',e.target.value)}
+                      placeholder="🔒 เห็นได้โดย (ชื่อ): เช่น Net, Arm — ว่าง = ทุกคนเห็น" />
                   </div>
                 </div>
               ))}
@@ -384,14 +473,31 @@ export default function Page() {
 // ══════════════════════════════════════════════════════════════════════════════
 // Project Card Component
 // ══════════════════════════════════════════════════════════════════════════════
-function ProjectCard({ p, onEdit, onDelete, copy, copiedId }: {
+function ProjectCard({ p, onEdit, onDelete, copy, copiedId, currentUser }: {
   p: Project
   onEdit: () => void
   onDelete: () => void
   copy: (text: string, uid: string) => void
   copiedId: string
+  currentUser: string
 }) {
   const s = STATUS_CFG[p.status] || STATUS_CFG.LIVE
+
+  // ── password reveal state ──────────────────────────────────────────────────
+  const [revealPass, setRevealPass] = useState<Record<string, boolean>>({})
+  function toggleReveal(id: string) {
+    setRevealPass(r => ({ ...r, [id]: !r[id] }))
+  }
+
+  // ── ตรรกะการแสดงบัญชี ─────────────────────────────────────────────────────
+  // assigned_to ว่าง = ทุกคนเห็นได้
+  // assigned_to มีชื่อ = เห็นเฉพาะคนนั้น (คนอื่นเห็นแค่ role ไม่เห็น pass)
+  function canSeePass(a: { assigned_to: string }) {
+    if (!a.assigned_to) return true                        // ว่าง = ทุกคนเห็น
+    if (!currentUser)   return false                       // ยังไม่ได้ตั้งชื่อ → ซ่อน
+    return a.assigned_to.trim().toLowerCase() === currentUser.trim().toLowerCase()
+  }
+
   return (
     <div style={{
       background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)',
@@ -411,6 +517,13 @@ function ProjectCard({ p, onEdit, onDelete, copy, copiedId }: {
           {p.desc && <div style={{ fontSize:'.72rem', color:'#64748b', marginTop:2 }}>{p.desc}</div>}
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          {/* Line OA Button */}
+          {p.line_oa && (
+            <a href={p.line_oa} target="_blank" rel="noreferrer" title="เปิด Line OA"
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'4px 9px', borderRadius:8, background:'rgba(0,185,0,0.15)', border:'1px solid rgba(0,185,0,0.35)', color:'#4ade80', fontSize:'.72rem', fontWeight:700, textDecoration:'none', flexShrink:0, whiteSpace:'nowrap' }}>
+              💚 LINE OA
+            </a>
+          )}
           <span style={{ padding:'3px 9px', borderRadius:20, fontSize:'.67rem', fontWeight:700, background:s.bg, color:s.color, border:`1px solid ${s.border}` }}>
             {s.label}
           </span>
@@ -428,7 +541,7 @@ function ProjectCard({ p, onEdit, onDelete, copy, copiedId }: {
       {/* Body */}
       <div style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:8 }}>
 
-        {/* URLs — all in a block */}
+        {/* URLs */}
         {p.urls.length > 0 && (
           <div style={{ background:'rgba(0,0,0,0.25)', borderRadius:10, overflow:'hidden' }}>
             <div style={{ padding:'6px 12px', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:'.67rem', fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:'.06em' }}>
@@ -460,25 +573,42 @@ function ProjectCard({ p, onEdit, onDelete, copy, copiedId }: {
             </div>
             <div style={{ background:'rgba(0,0,0,0.2)', borderRadius:10, overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
               {p.accounts.map((a) => {
-                const uid = `acct-${a.id}`
-                const text = `${a.email} | ${a.pass}`
+                const uid     = `acct-${a.id}`
+                const canSee  = canSeePass(a)
+                const text    = `${a.email} | ${a.pass}`
+                const isRevealed = revealPass[a.id]
+
                 return (
-                  <div key={a.id} style={{ padding:'7px 11px', borderBottom:'1px solid rgba(255,255,255,0.05)', display:'flex', alignItems:'center', gap:7 }}>
+                  <div key={a.id} style={{ padding:'8px 11px', borderBottom:'1px solid rgba(255,255,255,0.05)', display:'flex', alignItems:'center', gap:7 }}>
                     {a.role && (
                       <span style={{ padding:'2px 7px', borderRadius:6, fontSize:'.67rem', fontWeight:700, background:'rgba(249,115,22,0.12)', color:'#fb923c', border:'1px solid rgba(249,115,22,0.25)', flexShrink:0, whiteSpace:'nowrap' }}>
                         {a.role}
                       </span>
                     )}
-                    <span style={{ fontSize:'.77rem', color:'#94a3b8', fontFamily:'monospace', flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {a.email}
-                    </span>
-                    <span style={{ fontSize:'.77rem', color:'#cbd5e1', fontFamily:'monospace', flexShrink:0 }}>
-                      {a.pass}
-                    </span>
-                    <button onClick={()=>copy(text, uid)}
-                      style={{ padding:'2px 7px', borderRadius:6, border:'1px solid rgba(255,255,255,0.1)', background:copiedId===uid ? 'rgba(22,163,74,0.2)':'rgba(255,255,255,0.05)', color:copiedId===uid ? '#4ade80':'#64748b', fontSize:'.67rem', cursor:'pointer', flexShrink:0, transition:'all .15s' }}>
-                      {copiedId===uid ? '✓' : 'copy'}
-                    </button>
+
+                    {canSee ? (
+                      // เห็นได้เต็ม
+                      <>
+                        <span style={{ fontSize:'.77rem', color:'#94a3b8', fontFamily:'monospace', flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          {a.email}
+                        </span>
+                        <span style={{ fontSize:'.77rem', color: isRevealed ? '#cbd5e1':'transparent', fontFamily:'monospace', flexShrink:0, background: isRevealed ? 'transparent':'rgba(255,255,255,0.08)', borderRadius:4, padding:'0 4px', userSelect: isRevealed ? 'auto':'none', filter: isRevealed ? 'none':'blur(4px)', transition:'filter .2s', cursor:'pointer', minWidth:60, textAlign:'center' }}
+                          onClick={()=>toggleReveal(a.id)} title={isRevealed ? 'คลิกซ่อน':'คลิกดูรหัส'}>
+                          {isRevealed ? a.pass : '••••••••'}
+                        </span>
+                        <button onClick={()=>copy(text, uid)}
+                          style={{ padding:'2px 7px', borderRadius:6, border:'1px solid rgba(255,255,255,0.1)', background:copiedId===uid ? 'rgba(22,163,74,0.2)':'rgba(255,255,255,0.05)', color:copiedId===uid ? '#4ade80':'#64748b', fontSize:'.67rem', cursor:'pointer', flexShrink:0, transition:'all .15s' }}>
+                          {copiedId===uid ? '✓' : 'copy'}
+                        </button>
+                      </>
+                    ) : (
+                      // ซ่อน — เป็นบัญชีของคนอื่น
+                      <>
+                        <span style={{ fontSize:'.75rem', color:'#475569', flex:1, fontStyle:'italic' }}>
+                          🔒 บัญชีของ {a.assigned_to || 'ผู้อื่น'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 )
               })}

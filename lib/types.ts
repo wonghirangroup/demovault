@@ -6,11 +6,12 @@ export interface ProjectUrl {
 }
 
 export interface ProjectAccount {
-  id:    string
-  role:  string   // "Admin", "Super Admin", "HR Manager"
-  email: string
-  pass:  string
-  sort:  number
+  id:          string
+  role:        string   // "Admin", "Super Admin", "HR Manager"
+  email:       string
+  pass:        string
+  assigned_to: string   // ชื่อคนที่บัญชีนี้เป็นของ (ว่าง = ทุกคนเห็น)
+  sort:        number
 }
 
 export type ProjectStatus = 'LIVE' | 'DEMO' | 'DEV' | 'DOWN'
@@ -23,6 +24,7 @@ export interface Project {
   color:    string
   status:   ProjectStatus
   note:     string
+  line_oa:  string      // Line OA URL
   urls:     ProjectUrl[]
   accounts: ProjectAccount[]
   sort:     number

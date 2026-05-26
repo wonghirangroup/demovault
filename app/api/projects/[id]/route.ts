@@ -9,8 +9,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const body = await req.json()
 
     await pool.query(
-      `UPDATE dv_projects SET name=?, description=?, emoji=?, color=?, status=?, note=?, sort_order=? WHERE id=?`,
-      [body.name, body.desc||'', body.emoji||'📁', body.color||'', body.status||'LIVE', body.note||'', body.sort||0, id]
+      `UPDATE dv_projects SET name=?, description=?, emoji=?, color=?, status=?, note=?, line_oa=?, sort_order=? WHERE id=?`,
+      [body.name, body.desc||'', body.emoji||'📁', body.color||'', body.status||'LIVE', body.note||'', body.line_oa||'', body.sort||0, id]
     )
 
     // replace urls
@@ -28,8 +28,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     for (let i = 0; i < (body.accounts||[]).length; i++) {
       const a = body.accounts[i]
       await pool.query(
-        'INSERT INTO dv_accounts (id, project_id, role, email, pass, sort_order) VALUES (?,?,?,?,?,?)',
-        [uuidv4(), id, a.role||'', a.email||'', a.pass||'', i]
+        'INSERT INTO dv_accounts (id, project_id, role, email, pass, assigned_to, sort_order) VALUES (?,?,?,?,?,?,?)',
+        [uuidv4(), id, a.role||'', a.email||'', a.pass||'', a.assigned_to||'', i]
       )
     }
 
