@@ -128,13 +128,15 @@ export default function Page() {
   }, [currentUser])
 
   const fetchUsers = useCallback(async () => {
-    if (!currentUser?.is_admin || !lineUid) return
+    if (!currentUser?.is_admin) return
+    const uid = currentUser.line_uid
+    if (!uid) return
     try {
-      const res = await fetch('/api/users', { headers:{ 'x-line-uid': lineUid } })
+      const res = await fetch('/api/users', { headers:{ 'x-line-uid': uid } })
       const j   = await res.json()
       if (j.ok) setDvUsers(j.data)
     } catch { /* ignore */ }
-  }, [currentUser, lineUid])
+  }, [currentUser])
 
   useEffect(() => {
     if (authState === 'ok') { fetchProjects(); fetchUsers() }
@@ -182,7 +184,7 @@ export default function Page() {
       const body = { ...form, urls:form.urls.filter(u=>u.url.trim()), accounts:form.accounts.filter(a=>a.email.trim()||a.role.trim()) }
       const url    = editId ? `/api/projects/${editId}` : '/api/projects'
       const method = editId ? 'PUT' : 'POST'
-      const res    = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+      const res    = await fetch(url, { method, headers:{'Content-Type':'application/json','x-line-uid':currentUser?.line_uid||''}, body:JSON.stringify(body) })
       const j      = await res.json()
       if (!j.ok) throw new Error(j.error)
       await fetchProjects()
@@ -196,7 +198,7 @@ export default function Page() {
   function askDelete(p: Project) { setDeleteId(p.id); setDelOpen(true) }
   async function confirmDelete() {
     if (!deleteId) return
-    await fetch(`/api/projects/${deleteId}`, { method:'DELETE' })
+    await fetch(`/api/projects/${deleteId}`, { method:'DELETE', headers:{'x-line-uid':currentUser?.line_uid||''} })
     await fetchProjects()
     setDelOpen(false)
     toast('🗑️ ลบโปรเจคแล้ว')
@@ -209,7 +211,7 @@ export default function Page() {
     try {
       const res = await fetch('/api/users', {
         method:'POST',
-        headers:{ 'Content-Type':'application/json', 'x-line-uid': lineUid },
+        headers:{ 'Content-Type':'application/json', 'x-line-uid': currentUser?.line_uid||'' },
         body: JSON.stringify({ line_uid:newUid.trim(), name:newName.trim(), is_admin:newIsAdmin?1:0 })
       })
       const j = await res.json()
@@ -224,7 +226,7 @@ export default function Page() {
   // Delete user
   async function deleteUser(id: string) {
     if (!confirm('ลบผู้ใช้นี้?')) return
-    await fetch('/api/users', { method:'DELETE', headers:{'Content-Type':'application/json','x-line-uid':lineUid}, body:JSON.stringify({id}) })
+    await fetch('/api/users', { method:'DELETE', headers:{'Content-Type':'application/json','x-line-uid':currentUser?.line_uid||''}, body:JSON.stringify({id}) })
     await fetchUsers()
     toast('🗑️ ลบผู้ใช้แล้ว')
   }
