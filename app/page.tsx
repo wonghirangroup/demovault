@@ -615,23 +615,19 @@ export default function Page() {
                   </div>
                   {/* Assign to users — Multi-select checkboxes */}
                   <div style={{ background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.15)', borderRadius:8, padding:'8px 10px' }}>
-                    <div style={{ fontSize:10, color:'#6366f1', fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:6 }}>🔒 เห็นได้โดย</div>
-                    {/* ทุกคน */}
-                    <label style={{ display:'flex', alignItems:'center', gap:7, fontSize:12, color: !a.assigned_to ? '#4ade80':'#94a3b8', cursor:'pointer', marginBottom:5 }}>
-                      <input type="checkbox"
-                        checked={!a.assigned_to}
-                        onChange={() => setAcct(i,'assigned_to','')}
-                        style={{ accentColor:'#4ade80', width:14, height:14 }}
-                      />
-                      🌐 ทุกคนเห็นได้ (Shared)
-                    </label>
-                    {/* แต่ละคน — ใช้ u.id (UUID) ไม่ใช่ line_uid เพราะบางคนยังไม่ได้ login */}
-                    <div style={{ display:'flex', flexWrap:'wrap' as const, gap:'4px 16px' }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                      <span style={{ fontSize:10, color:'#6366f1', fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'.06em' }}>🔒 เห็นได้โดย</span>
+                      {a.assigned_to
+                        ? <span style={{ fontSize:10, color:'#64748b' }}>ไม่เลือก = ทุกคนเห็น</span>
+                        : <span style={{ fontSize:10, color:'#4ade80' }}>🌐 ทุกคนเห็น</span>
+                      }
+                    </div>
+                    <div style={{ display:'flex', flexWrap:'wrap' as const, gap:'6px 14px' }}>
                       {dvUsers.map(u => {
                         const ids     = a.assigned_to ? a.assigned_to.split(',').filter(Boolean) : []
                         const checked = ids.includes(u.id)
                         return (
-                          <label key={u.id} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color: checked ? '#a5b4fc':'#94a3b8', cursor:'pointer', padding:'2px 0' }}>
+                          <label key={u.id} style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color: checked ? '#a5b4fc' : '#64748b', cursor:'pointer', padding:'3px 0', fontWeight: checked ? 600 : 400 }}>
                             <input type="checkbox"
                               checked={checked}
                               onChange={e => {
@@ -641,7 +637,7 @@ export default function Page() {
                                   : cur.filter(id => id !== u.id)
                                 setAcct(i,'assigned_to', next.join(','))
                               }}
-                              style={{ accentColor:'#6366f1', width:14, height:14 }}
+                              style={{ accentColor:'#6366f1', width:15, height:15, cursor:'pointer' }}
                             />
                             {u.name}
                           </label>
