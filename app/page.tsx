@@ -161,11 +161,10 @@ export default function Page() {
   }, [currentUser])
 
   const fetchUsers = useCallback(async () => {
-    if (!currentUser?.is_admin) return
-    const uid = currentUser.line_uid
-    if (!uid) return
+    if (!currentUser) return
     try {
-      const res = await fetch('/api/users', { headers:{ 'x-line-uid': uid } })
+      // ทุกคนดึงได้ — ใช้ id+name เท่านั้น ไม่มี line_uid
+      const res = await fetch('/api/members')
       const j   = await res.json()
       if (j.ok) setDvUsers(j.data)
     } catch { /* ignore */ }
@@ -451,7 +450,7 @@ export default function Page() {
             onEdit={isAdmin ? ()=>openEdit(p) : undefined}
             onDelete={isAdmin ? ()=>askDelete(p) : undefined}
             copy={copy} copiedId={copiedId}
-            currentLineUid={currentUser?.line_uid || ''}
+            currentLineUid={currentUser?.id || ''}
             isAdmin={isAdmin}
             dvUsers={dvUsers}
           />
@@ -626,20 +625,20 @@ export default function Page() {
                       />
                       🌐 ทุกคนเห็นได้ (Shared)
                     </label>
-                    {/* แต่ละคน */}
+                    {/* แต่ละคน — ใช้ u.id (UUID) ไม่ใช่ line_uid เพราะบางคนยังไม่ได้ login */}
                     <div style={{ display:'flex', flexWrap:'wrap' as const, gap:'4px 16px' }}>
                       {dvUsers.map(u => {
-                        const uids    = a.assigned_to ? a.assigned_to.split(',').filter(Boolean) : []
-                        const checked = uids.includes(u.line_uid)
+                        const ids     = a.assigned_to ? a.assigned_to.split(',').filter(Boolean) : []
+                        const checked = ids.includes(u.id)
                         return (
-                          <label key={u.line_uid} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color: checked ? '#a5b4fc':'#94a3b8', cursor:'pointer', padding:'2px 0' }}>
+                          <label key={u.id} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color: checked ? '#a5b4fc':'#94a3b8', cursor:'pointer', padding:'2px 0' }}>
                             <input type="checkbox"
                               checked={checked}
                               onChange={e => {
-                                const cur = a.assigned_to ? a.assigned_to.split(',').filter(Boolean) : []
+                                const cur  = a.assigned_to ? a.assigned_to.split(',').filter(Boolean) : []
                                 const next = e.target.checked
-                                  ? [...cur, u.line_uid]
-                                  : cur.filter(id => id !== u.line_uid)
+                                  ? [...cur, u.id]
+                                  : cur.filter(id => id !== u.id)
                                 setAcct(i,'assigned_to', next.join(','))
                               }}
                               style={{ accentColor:'#6366f1', width:14, height:14 }}
@@ -716,22 +715,23 @@ function ProjectCard({ p, onEdit, onDelete, copy, copiedId, currentLineUid, isAd
   const s = STATUS_CFG[p.status] || STATUS_CFG.LIVE
   const [revealPass, setRevealPass] = useState<Record<string,boolean>>({})
 
-  // เห็น pass ได้ถ้า: assigned_to ว่าง (shared) หรือ UID อยู่ในลิสต์ หรือ เป็น admin
+  // เห็น pass ได้ถ้า: assigned_to ว่าง (shared) หรือ user.id อยู่ในลิสต์ หรือ เป็น admin
   function canSee(a: ProjectAccount) {
     if (!a.assigned_to) return true
     if (isAdmin)        return true
-    const uids = a.assigned_to.split(',').map(s => s.trim()).filter(Boolean)
-    return uids.includes(currentLineUid)
+    const ids = a.assigned_to.split(',').map(s => s.trim()).filter(Boolean)
+    // currentUser.id คือ UUID ใน dv_users — ใช้เปรียบเทียบแทน line_uid
+    return ids.includes(currentLineUid)  // currentLineUid ส่งมาเป็น currentUser.id แล้ว
   }
 
-  // หาชื่อจาก LINE UID
-  function userName(uid: string) {
-    return dvUsers.find(u => u.line_uid === uid.trim())?.name || uid.slice(0,8)+'...'
+  // หาชื่อจาก user.id (UUID)
+  function userName(id: string) {
+    return dvUsers.find(u => u.id === id.trim())?.name || '?'
   }
 
   // แสดงชื่อเจ้าของหลายคน
   function ownerNames(assigned_to: string) {
-    return assigned_to.split(',').filter(Boolean).map(uid => userName(uid)).join(', ')
+    return assigned_to.split(',').filter(Boolean).map(id => userName(id)).join(', ')
   }
 
   return (
